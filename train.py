@@ -1,20 +1,13 @@
 """
-train.py
-========
 Modul training untuk dua task:
-  1. Klasifikasi  — memprediksi placement_status (Placed / Not Placed)
-  2. Regresi      — memprediksi salary_lpa
+  1. Klasifikasi  : memprediksi placement_status (Placed / Not Placed)
+  2. Regresi      : memprediksi salary_lpa
 
 Setiap task menggunakan sklearn.Pipeline end-to-end yang mencakup:
   - Preprocessing (SimpleImputer + StandardScaler/OrdinalEncoder)
   - Model training
   - MLflow experiment tracking (params, metrics, artifacts)
   - Penyimpanan model .pkl
-
-Fungsi utama:
-  - build_preprocessor()          : buat ColumnTransformer
-  - train_classification(...)     : latih & track model klasifikasi
-  - train_regression(...)         : latih & track model regresi
 """
 
 import joblib
@@ -34,10 +27,15 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
-# ─── Path Configuration ───────────────────────────────────────────────────────
+# Path Configuration 
 BASE_DIR   = Path(__file__).parent
 MODELS_DIR = BASE_DIR / "models"
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
+# MLflow tracking URI — selalu gunakan path absolut agar konsisten
+# di semua OS dan working directory manapun
+MLRUNS_DIR = BASE_DIR / "mlruns"
+TRACKING_URI = MLRUNS_DIR.as_uri()   
 
 CLF_MODEL_PATH = MODELS_DIR / "model_classification.pkl"
 REG_MODEL_PATH = MODELS_DIR / "model_regression.pkl"
@@ -47,23 +45,10 @@ CLF_EXPERIMENT = "Student Placement Classification"
 REG_EXPERIMENT = "Student Salary Regression"
 
 
-# ─── Preprocessor Builder ─────────────────────────────────────────────────────
+# Preprocessor Builder
 
 def build_preprocessor(num_cols: list, cat_cols: list) -> ColumnTransformer:
-    """
-    Buat ColumnTransformer yang berisi:
-      - Numerical pipeline : SimpleImputer(mean) → StandardScaler
-      - Categorical pipeline: SimpleImputer(most_frequent) → OrdinalEncoder
-
-    Parameters
-    ----------
-    num_cols : list kolom numerik
-    cat_cols : list kolom kategorik
-
-    Returns
-    -------
-    ColumnTransformer
-    """
+   
     num_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="mean")),
         ("scaler",  StandardScaler())
@@ -82,13 +67,13 @@ def build_preprocessor(num_cols: list, cat_cols: list) -> ColumnTransformer:
             ("num", num_pipeline, num_cols),
             ("cat", cat_pipeline, cat_cols)
         ],
-        remainder="drop"        # drop Student_ID dan kolom lain yang tidak dipakai
+        remainder="drop"
     )
 
     return preprocessor
 
 
-# ─── Classification Training ──────────────────────────────────────────────────
+#  Classification Training 
 
 def train_classification(
     X_train: pd.DataFrame,
@@ -98,29 +83,7 @@ def train_classification(
     num_cols: list,
     cat_cols: list
 ) -> str:
-    """
-    Latih pipeline klasifikasi (Logistic Regression) dengan MLflow tracking.
-
-    Pipeline:
-      ColumnTransformer (impute + scale/encode) → LogisticRegression
-
-    MLflow logs:
-      Params  : model name, max_iter, class_weight, C
-      Metrics : accuracy, f1_weighted, roc_auc
-      Artifact: model .pkl
-
-    Parameters
-    ----------
-    X_train, X_test : feature dataframes
-    y_train, y_test : binary target series (1=Placed, 0=Not Placed)
-    num_cols        : list of numerical column names
-    cat_cols        : list of categorical column names
-
-    Returns
-    -------
-    str : MLflow run_id dari run ini
-    """
-    # Model hyperparameters
+    
     params = {
         "model_name":   "LogisticRegression",
         "max_iter":     1000,
@@ -141,40 +104,31 @@ def train_classification(
         ))
     ])
 
-    # ── MLflow Tracking ──
+    #  MLflow Tracking
+    # Set tracking URI ke path absolut — fix untuk Windows file-based tracking
+    mlflow.set_tracking_uri(TRACKING_URI)
     mlflow.set_experiment(CLF_EXPERIMENT)
 
     with mlflow.start_run(run_name="LR_Classification") as run:
         print("\n  [clf] Training Logistic Regression pipeline...")
 
-        # Train
         clf_pipeline.fit(X_train, y_train)
 
-        # Predict
         y_pred = clf_pipeline.predict(X_test)
         y_prob = clf_pipeline.predict_proba(X_test)[:, 1]
 
-        # Metrics
         acc     = accuracy_score(y_test, y_pred)
         f1      = f1_score(y_test, y_pred, average="weighted")
         roc_auc = roc_auc_score(y_test, y_prob)
 
-        # Log params
         mlflow.log_params(params)
-
-        # Log metrics
         mlflow.log_metric("accuracy",    acc)
         mlflow.log_metric("f1_weighted", f1)
         mlflow.log_metric("roc_auc",     roc_auc)
 
-        # Log model ke MLflow model registry
-        mlflow.sklearn.log_model(
-            clf_pipeline,
-            artifact_path="clf_model",
-            registered_model_name="StudentPlacementClassifier"
-        )
+        # Log model — tanpa registered_model_name agar tidak butuh MLflow Registry DB
+        mlflow.sklearn.log_model(clf_pipeline, artifact_path="clf_model")
 
-        # Simpan .pkl lokal
         joblib.dump(clf_pipeline, CLF_MODEL_PATH)
         mlflow.log_artifact(str(CLF_MODEL_PATH), artifact_path="pkl")
 
@@ -189,7 +143,7 @@ def train_classification(
     return run_id
 
 
-# ─── Regression Training ──────────────────────────────────────────────────────
+#  Regression Training 
 
 def train_regression(
     X_train: pd.DataFrame,
@@ -199,33 +153,11 @@ def train_regression(
     num_cols: list,
     cat_cols: list
 ) -> str:
-    """
-    Latih pipeline regresi (Random Forest Regressor) dengan MLflow tracking.
-
-    Pipeline:
-      ColumnTransformer (impute + scale/encode) → RandomForestRegressor
-
-    MLflow logs:
-      Params  : model name, n_estimators, max_depth, random_state
-      Metrics : mae, rmse, r2
-      Artifact: model .pkl
-
-    Parameters
-    ----------
-    X_train, X_test : feature dataframes
-    y_train, y_test : continuous target series (salary_lpa)
-    num_cols        : list of numerical column names
-    cat_cols        : list of categorical column names
-
-    Returns
-    -------
-    str : MLflow run_id dari run ini
-    """
-    # Model hyperparameters
+   
     params = {
         "model_name":   "RandomForestRegressor",
         "n_estimators": 100,
-        "max_depth":    None,    # None = expand until all leaves pure
+        "max_depth":    None,
         "random_state": 42
     }
 
@@ -240,39 +172,29 @@ def train_regression(
         ))
     ])
 
-    # ── MLflow Tracking ──
+    #  MLflow Tracking 
+    mlflow.set_tracking_uri(TRACKING_URI)
     mlflow.set_experiment(REG_EXPERIMENT)
 
     with mlflow.start_run(run_name="RF_Regression") as run:
         print("\n  [reg] Training Random Forest Regressor pipeline...")
 
-        # Train
         reg_pipeline.fit(X_train, y_train)
 
-        # Predict
         y_pred = reg_pipeline.predict(X_test)
 
-        # Metrics
         mae  = mean_absolute_error(y_test, y_pred)
         rmse = np.sqrt(mean_squared_error(y_test, y_pred))
         r2   = r2_score(y_test, y_pred)
 
-        # Log params
         mlflow.log_params(params)
-
-        # Log metrics
         mlflow.log_metric("mae",  mae)
         mlflow.log_metric("rmse", rmse)
         mlflow.log_metric("r2",   r2)
 
-        # Log model ke MLflow model registry
-        mlflow.sklearn.log_model(
-            reg_pipeline,
-            artifact_path="reg_model",
-            registered_model_name="StudentSalaryRegressor"
-        )
+        # Log model — tanpa registered_model_name
+        mlflow.sklearn.log_model(reg_pipeline, artifact_path="reg_model")
 
-        # Simpan .pkl lokal
         joblib.dump(reg_pipeline, REG_MODEL_PATH)
         mlflow.log_artifact(str(REG_MODEL_PATH), artifact_path="pkl")
 
@@ -287,7 +209,7 @@ def train_regression(
     return run_id
 
 
-# ─── Standalone Execution ─────────────────────────────────────────────────────
+# Standalone Execution 
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(Path(__file__).parent))

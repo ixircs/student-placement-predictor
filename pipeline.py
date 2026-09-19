@@ -1,8 +1,6 @@
 """
 pipeline.py
-===========
-Master orchestrator — jalankan file ini untuk menjalankan seluruh
-pipeline training dari awal sampai model siap deploy.
+
 
 Urutan eksekusi:
   Step 1 → Data Ingestion        (data_ingestion.py)
@@ -12,15 +10,6 @@ Urutan eksekusi:
   Step 5 → Evaluation            (evaluation.py) — 2 model
   Step 6 → Threshold Check       → approve / reject
   Step 7 → Summary Report
-
-Cara menjalankan:
-  $ python pipeline.py
-
-Output:
-  - models/model_classification.pkl
-  - models/model_regression.pkl
-  - mlruns/  (MLflow tracking data)
-  - ingested/A_merged.csv
 """
 
 import sys
@@ -41,12 +30,12 @@ from evaluation         import (
 )
 
 
-# ─── Pipeline Configuration ───────────────────────────────────────────────────
+#  Pipeline Configuration 
 TEST_SIZE   = 0.2
 RANDOM_STATE = 42
 
 
-# ─── Main Pipeline ────────────────────────────────────────────────────────────
+#  Main Pipeline 
 
 def run_pipeline():
     print("\n" + "█" * 55)
@@ -54,10 +43,10 @@ def run_pipeline():
     print("  Dataset A | NIM Ganjil")
     print("█" * 55)
 
-    # ── STEP 1: Data Ingestion ──────────────────────────────
+    # STEP 1: Data Ingestion 
     df = ingest_data()
 
-    # ── STEP 2: Feature Engineering ────────────────────────
+    #  STEP 2: Feature Engineering
     print("\n" + "=" * 55)
     print("STEP 2 — FEATURE ENGINEERING")
     print("=" * 55)
@@ -66,7 +55,7 @@ def run_pipeline():
     print(f"  Fitur engineering ditambahkan: academic_score, experience_index, skill_avg")
     print(f"  Total fitur: {len(all_cols)} ({len(num_cols)} numerik + {len(cat_cols)} kategorik)")
 
-    # ── STEP 3: Train-Test Split ────────────────────────────
+    #  STEP 3: Train-Test Split
     print("\n" + "=" * 55)
     print("STEP 3 — TRAIN-TEST SPLIT (80:20)")
     print("=" * 55)
@@ -87,7 +76,7 @@ def run_pipeline():
     print(f"  Train class dist: Placed={yc_train.mean():.2%}  Not Placed={(1-yc_train.mean()):.2%}")
     print(f"  Test  class dist: Placed={yc_test.mean():.2%}  Not Placed={(1-yc_test.mean()):.2%}")
 
-    # ── STEP 4: Training ────────────────────────────────────
+    #  STEP 4: Training
     print("\n" + "=" * 55)
     print("STEP 4 — MODEL TRAINING")
     print("=" * 55)
@@ -99,7 +88,7 @@ def run_pipeline():
         X_train, X_test, yr_train, yr_test, num_cols, cat_cols
     )
 
-    # ── STEP 5: Evaluation ──────────────────────────────────
+    #  STEP 5: Evaluation   
     print("\n" + "=" * 55)
     print("STEP 5 — EVALUATION")
     print("=" * 55)
@@ -107,7 +96,7 @@ def run_pipeline():
     clf_metrics = evaluate_classification(clf_run_id, X_test, yc_test)
     reg_metrics = evaluate_regression(reg_run_id, X_test, yr_test)
 
-    # ── STEP 6: Threshold Check ─────────────────────────────
+    # STEP 6: Threshold Check
     print("\n" + "=" * 55)
     print("STEP 6 — THRESHOLD CHECK (APPROVE / REJECT)")
     print("=" * 55)
@@ -115,7 +104,7 @@ def run_pipeline():
     clf_approved = check_model_threshold(clf_metrics, task="clf")
     reg_approved = check_model_threshold(reg_metrics, task="reg")
 
-    # ── STEP 7: Summary ─────────────────────────────────────
+    #  STEP 7: Summary 
     print("\n" + "█" * 55)
     print("  PIPELINE SUMMARY")
     print("█" * 55)
@@ -152,6 +141,6 @@ def run_pipeline():
     }
 
 
-# ─── Entry Point ──────────────────────────────────────────────────────────────
+# Entry Point 
 if __name__ == "__main__":
     results = run_pipeline()

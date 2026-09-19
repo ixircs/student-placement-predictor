@@ -1,20 +1,3 @@
-"""
-feature_engineering.py
-=======================
-Modul feature engineering yang digunakan bersama oleh pipeline training
-dan inference (Streamlit / FastAPI).
-
-Fungsi utama:
-  - engineer_features(df) : tambahkan 3 fitur turunan ke dataframe
-  - get_feature_lists()   : kembalikan NUM_COLS, CAT_COLS, ALL_COLS
-
-Catatan:
-  Fitur hasil engineering ini dibuat SEBELUM data masuk ke sklearn Pipeline,
-  karena sklearn ColumnTransformer tidak mendukung penambahan kolom baru
-  secara langsung. Alternatifnya adalah FunctionTransformer, namun pendekatan
-  modular ini lebih mudah di-debug dan direproduksi di inference time.
-"""
-
 import pandas as pd
 from typing import Tuple
 
@@ -42,24 +25,7 @@ ALL_COLS = NUM_COLS + CAT_COLS
 # ─── Core Function ────────────────────────────────────────────────────────────
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Tambahkan 3 fitur turunan ke dataframe.
-
-    Fitur baru:
-      - academic_score   : rata-rata CGPA (dinormalisasi ke 100), nilai 10,
-                           dan nilai 12. Merangkum performa akademik secara holistik.
-      - experience_index : skor pengalaman praktis dengan bobot internship ×2
-                           karena memiliki korelasi tertinggi dengan placement.
-      - skill_avg        : rata-rata tiga skill rating (coding, komunikasi, aptitude).
-
-    Parameters
-    ----------
-    df : pd.DataFrame — dataframe input (boleh berisi kolom lain)
-
-    Returns
-    -------
-    pd.DataFrame : dataframe dengan 3 kolom baru ditambahkan (in-place copy)
-    """
+    
     df = df.copy()
 
     df["academic_score"] = (
@@ -85,13 +51,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_feature_lists() -> Tuple[list, list, list]:
-    """
-    Kembalikan daftar kolom fitur yang digunakan model.
 
-    Returns
-    -------
-    Tuple[list, list, list] : (NUM_COLS, CAT_COLS, ALL_COLS)
-    """
     return NUM_COLS, CAT_COLS, ALL_COLS
 
 

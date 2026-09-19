@@ -1,12 +1,10 @@
 """
 evaluation.py
-=============
 Modul evaluasi model untuk kedua task (klasifikasi & regresi).
 
 Fungsi utama:
   - evaluate_classification(run_id, X_test, y_test) : evaluasi + log ke MLflow
   - evaluate_regression(run_id, X_test, y_test)     : evaluasi + log ke MLflow
-  - print_classification_report(y_test, y_pred)     : tampilkan report lengkap
   - check_model_threshold(metrics, task)            : approve/reject model
 """
 
@@ -14,51 +12,50 @@ import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from sklearn.metrics import (
     accuracy_score, classification_report, confusion_matrix,
     f1_score, roc_auc_score,
     mean_absolute_error, mean_squared_error, r2_score
 )
 
-# ─── Threshold Configuration ──────────────────────────────────────────────────
-# Model dianggap layak deploy jika memenuhi threshold berikut
+#  Path Configuration 
+BASE_DIR     = Path(__file__).parent
+MLRUNS_DIR   = BASE_DIR / "mlruns"
+TRACKING_URI = MLRUNS_DIR.as_uri()   # path absolut — sama dengan train.py
+
+#  Threshold Configuration 
+
 CLF_THRESHOLD = {
     "accuracy":    0.75,
     "f1_weighted": 0.75,
     "roc_auc":     0.80
 }
 REG_THRESHOLD = {
-    "r2":  0.50,     # minimal 50% variance explained
-    "mae": 5.00      # max error rata-rata 5 LPA
+    "r2":  0.50,
+    "mae": 5.00
 }
 
 
-# ─── Classification Evaluation ────────────────────────────────────────────────
+#  Classification Evaluation 
 
 def evaluate_classification(
     run_id: str,
     X_test: pd.DataFrame,
     y_test: pd.Series
 ) -> dict:
-    """
-    Evaluasi model klasifikasi dari MLflow run dan log metrik tambahan.
-
-    Parameters
-    ----------
-    run_id : MLflow run ID yang dihasilkan oleh train_classification()
-    X_test : test feature dataframe
-    y_test : test target series (binary)
-
-    Returns
-    -------
-    dict : {"accuracy": float, "f1_weighted": float, "roc_auc": float}
-    """
+    
     print("\n" + "=" * 55)
     print("EVALUASI — Classification")
     print("=" * 55)
 
-    # Load model dari MLflow
-    model = mlflow.sklearn.load_model(f"runs:/{run_id}/clf_model")
+    # Set tracking URI absolut — wajib agar load_model tahu di mana mlruns/
+    mlflow.set_tracking_uri(TRACKING_URI)
+
+    # Load model langsung dari .pkl untuk menghindari dependency ke MLflow Registry
+    clf_model_path = BASE_DIR / "models" / "model_classification.pkl"
+    import joblib
+    model = joblib.load(clf_model_path)
 
     y_pred = model.predict(X_test)
     y_prob = model.predict_proba(X_test)[:, 1]
@@ -69,8 +66,9 @@ def evaluate_classification(
         "roc_auc":     roc_auc_score(y_test, y_prob)
     }
 
-    # Log ulang ke run yang sama (reopen)
-    with mlflow.start_run(run_id=run_id):
+    # Log eval metrics ke run yang sudah ada
+    mlflow.set_experiment("Student Placement Classification")
+    with mlflow.start_run(run_id=run_id, nested=False):
         for key, val in metrics.items():
             mlflow.log_metric(f"eval_{key}", val)
 
@@ -89,32 +87,24 @@ def evaluate_classification(
     return metrics
 
 
-# ─── Regression Evaluation ────────────────────────────────────────────────────
+#  Regression Evaluation 
 
 def evaluate_regression(
     run_id: str,
     X_test: pd.DataFrame,
     y_test: pd.Series
 ) -> dict:
-    """
-    Evaluasi model regresi dari MLflow run dan log metrik tambahan.
-
-    Parameters
-    ----------
-    run_id : MLflow run ID yang dihasilkan oleh train_regression()
-    X_test : test feature dataframe
-    y_test : test target series (continuous)
-
-    Returns
-    -------
-    dict : {"mae": float, "rmse": float, "r2": float}
-    """
+    
     print("\n" + "=" * 55)
     print("EVALUASI — Regression")
     print("=" * 55)
 
-    # Load model dari MLflow
-    model = mlflow.sklearn.load_model(f"runs:/{run_id}/reg_model")
+    mlflow.set_tracking_uri(TRACKING_URI)
+
+    # Load model dari .pkl
+    reg_model_path = BASE_DIR / "models" / "model_regression.pkl"
+    import joblib
+    model = joblib.load(reg_model_path)
 
     y_pred = model.predict(X_test)
 
@@ -124,8 +114,9 @@ def evaluate_regression(
         "r2":   r2_score(y_test, y_pred)
     }
 
-    # Log ulang ke run yang sama (reopen)
-    with mlflow.start_run(run_id=run_id):
+    # Log eval metrics ke run yang sudah ada
+    mlflow.set_experiment("Student Salary Regression")
+    with mlflow.start_run(run_id=run_id, nested=False):
         for key, val in metrics.items():
             mlflow.log_metric(f"eval_{key}", val)
 
@@ -133,7 +124,6 @@ def evaluate_regression(
     for key, val in metrics.items():
         print(f"  {key:<15}: {val:.4f}")
 
-    # Residual summary
     residuals = y_test.values - y_pred
     print(f"\n  Residual Summary:")
     print(f"    Mean  : {residuals.mean():.4f}")
@@ -144,21 +134,10 @@ def evaluate_regression(
     return metrics
 
 
-# ─── Threshold Check ──────────────────────────────────────────────────────────
+#  Threshold Check 
 
 def check_model_threshold(metrics: dict, task: str = "clf") -> bool:
-    """
-    Periksa apakah model memenuhi threshold minimum untuk deployment.
-
-    Parameters
-    ----------
-    metrics : dict hasil evaluate_classification() atau evaluate_regression()
-    task    : "clf" untuk klasifikasi, "reg" untuk regresi
-
-    Returns
-    -------
-    bool : True jika model APPROVED, False jika REJECTED
-    """
+    
     print("\n" + "-" * 55)
     thresholds = CLF_THRESHOLD if task == "clf" else REG_THRESHOLD
     approved   = True
@@ -166,30 +145,23 @@ def check_model_threshold(metrics: dict, task: str = "clf") -> bool:
     for metric, threshold in thresholds.items():
         if metric not in metrics:
             continue
-        val = metrics[metric]
-        # MAE: lower is better; semua metrik lain: higher is better
-        if metric == "mae":
-            passed = val <= threshold
-        else:
-            passed = val >= threshold
+        val    = metrics[metric]
+        passed = val <= threshold if metric == "mae" else val >= threshold
         status = "✓ PASS" if passed else "✗ FAIL"
-        print(f"  [{task.upper()}] {metric:<15}: {val:.4f}  (threshold {'≤' if metric=='mae' else '≥'} {threshold}) {status}")
+        sign   = "≤" if metric == "mae" else "≥"
+        print(f"  [{task.upper()}] {metric:<15}: {val:.4f}  (threshold {sign} {threshold}) {status}")
         if not passed:
             approved = False
 
-    if approved:
-        print(f"\n  ✅ Model [{task.upper()}] APPROVED untuk deployment.")
-    else:
-        print(f"\n  ❌ Model [{task.upper()}] REJECTED — perlu perbaikan.")
-
+    result = "✅ APPROVED" if approved else "❌ REJECTED — perlu perbaikan."
+    print(f"\n  Model [{task.upper()}] {result}")
     print("-" * 55)
     return approved
 
 
-# ─── Standalone Execution ─────────────────────────────────────────────────────
+#  Standalone Execution 
 if __name__ == "__main__":
     import sys
-    from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent))
     from data_ingestion import ingest_data
     from feature_engineering import engineer_features, get_feature_lists

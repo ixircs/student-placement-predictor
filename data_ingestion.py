@@ -1,21 +1,16 @@
 """
 data_ingestion.py
-=================
-Modul untuk memuat dan memvalidasi Dataset A (NIM Ganjil).
+
+Modul untuk load dan memvalidasi Dataset A (NIM Ganjil).
 Dataset A memiliki fitur dan target dalam file terpisah:
   - A.csv        : feature file
   - A_targets.csv: target file (placement_status, salary_lpa)
-
-Fungsi utama:
-  - load_raw_data()     : muat kedua file dan merge by Student_ID
-  - validate_data()     : cek shape, kolom wajib, missing values kritis
-  - ingest_data()       : pipeline lengkap (load + validate + simpan ingested)
 """
 
 import pandas as pd
 from pathlib import Path
 
-# ─── Path Configuration ───────────────────────────────────────────────────────
+# Path Configuration 
 BASE_DIR     = Path(__file__).parent
 DATA_DIR     = BASE_DIR / "data"
 INGESTED_DIR = BASE_DIR / "ingested"
@@ -37,24 +32,13 @@ REQUIRED_FEATURE_COLS = [
 REQUIRED_TARGET_COLS = ["Student_ID", "placement_status", "salary_lpa"]
 
 
-# ─── Core Functions ───────────────────────────────────────────────────────────
+# Core Functions 
 
 def load_raw_data(
     feature_path: str | Path = FEATURE_FILE,
     target_path:  str | Path = TARGET_FILE
 ) -> pd.DataFrame:
-    """
-    Muat A.csv dan A_targets.csv lalu merge menggunakan Student_ID.
-
-    Parameters
-    ----------
-    feature_path : path ke file fitur (default: data/A.csv)
-    target_path  : path ke file target (default: data/A_targets.csv)
-
-    Returns
-    -------
-    pd.DataFrame : merged dataframe (5000 rows x 25 cols)
-    """
+    
     feature_path = Path(feature_path)
     target_path  = Path(target_path)
 
@@ -77,23 +61,7 @@ def load_raw_data(
 
 
 def validate_data(df: pd.DataFrame) -> bool:
-    """
-    Validasi dasar sebelum data masuk ke pipeline training.
-
-    Checks:
-      1. Dataset tidak kosong
-      2. Semua kolom wajib tersedia
-      3. Tidak ada missing values pada kolom target
-      4. Tipe data target sudah sesuai
-
-    Parameters
-    ----------
-    df : merged dataframe dari load_raw_data()
-
-    Returns
-    -------
-    bool : True jika semua validasi lulus
-    """
+   
     print("\n  [validate] Menjalankan validasi data...")
 
     # 1. Cek dataset tidak kosong
@@ -133,19 +101,7 @@ def ingest_data(
     target_path:  str | Path = TARGET_FILE,
     output_path:  str | Path = OUTPUT_FILE
 ) -> pd.DataFrame:
-    """
-    Pipeline lengkap: load → validate → simpan ke folder ingested/.
-
-    Parameters
-    ----------
-    feature_path : path ke file fitur
-    target_path  : path ke file target
-    output_path  : path output file CSV hasil ingestion
-
-    Returns
-    -------
-    pd.DataFrame : dataframe yang sudah divalidasi dan siap diproses
-    """
+    
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -164,7 +120,7 @@ def ingest_data(
     return df
 
 
-# ─── Standalone Execution ─────────────────────────────────────────────────────
+# Standalone Execution  
 if __name__ == "__main__":
     df = ingest_data()
     print("\nSample data:")

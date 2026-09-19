@@ -1,23 +1,6 @@
-"""
-app.py
-======
-Soal 3 — Monolithic Deployment (Streamlit)
 
-Aplikasi web single-server untuk prediksi:
-  1. Placement Status  (Classification) — Placed / Not Placed
-  2. Estimated Salary  (Regression)     — salary dalam LPA
+#Soal 3 — Monolithic Deployment (Streamlit)
 
-Model dimuat dari file .pkl hasil pipeline.py (Soal 2).
-Semua logika preprocessing dan inference ada dalam satu file ini.
-
-Cara menjalankan:
-  $ streamlit run app.py
-
-Deploy ke Streamlit Cloud:
-  - Push seluruh folder ke GitHub
-  - Pastikan requirements.txt tersedia
-  - Set main file: app.py
-"""
 
 import joblib
 import numpy as np
@@ -26,8 +9,8 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pathlib import Path
-
-# ─── Page Configuration ───────────────────────────────────────────────────────
+from feature_engineering import engineer_features, get_feature_lists
+#  Page Configuration 
 st.set_page_config(
     page_title="Student Placement Predictor",
     page_icon="🎓",
@@ -35,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ─── Constants ────────────────────────────────────────────────────────────────
+#  Constants 
 BASE_DIR       = Path(__file__).parent
 CLF_MODEL_PATH = BASE_DIR / "models" / "model_classification.pkl"
 REG_MODEL_PATH = BASE_DIR / "models" / "model_regression.pkl"
@@ -54,7 +37,7 @@ CAT_COLS = [
 ]
 
 
-# ─── Model Loading ────────────────────────────────────────────────────────────
+#  Model Loading 
 @st.cache_resource
 def load_models():
     """Load kedua model .pkl — di-cache agar tidak reload setiap interaksi."""
@@ -63,7 +46,7 @@ def load_models():
     return clf_model, reg_model
 
 
-# ─── Feature Engineering ──────────────────────────────────────────────────────
+#  Feature Engineering 
 def engineer_features(data: dict) -> pd.DataFrame:
     """
     Tambahkan 3 fitur turunan (sama persis dengan feature_engineering.py).
@@ -93,7 +76,7 @@ def engineer_features(data: dict) -> pd.DataFrame:
     return df
 
 
-# ─── Prediction ───────────────────────────────────────────────────────────────
+# Prediction 
 def predict(clf_model, reg_model, input_df: pd.DataFrame) -> dict:
     """Jalankan prediksi untuk kedua task."""
     placement_pred = clf_model.predict(input_df)[0]
@@ -114,7 +97,7 @@ def predict(clf_model, reg_model, input_df: pd.DataFrame) -> dict:
     }
 
 
-# ─── Gauge Chart ──────────────────────────────────────────────────────────────
+# Gauge Chart 
 def plot_gauge(prob: float, title: str):
     """Gauge chart untuk menampilkan probabilitas."""
     fig, ax = plt.subplots(figsize=(4, 2.2), subplot_kw={"projection": "polar"})
@@ -139,7 +122,7 @@ def plot_gauge(prob: float, title: str):
     return fig
 
 
-# ─── Feature Radar Chart ──────────────────────────────────────────────────────
+# Feature Radar Chart 
 def plot_radar(data: dict):
     """Radar chart profil mahasiswa berdasarkan 6 dimensi utama."""
     categories = ["CGPA\n(/10)", "Coding\nSkill", "Projects", "Internships",
@@ -173,7 +156,7 @@ def plot_radar(data: dict):
     return fig
 
 
-# ─── Salary Benchmark Chart ───────────────────────────────────────────────────
+#  Salary Benchmark Chart 
 def plot_salary_benchmark(salary: float):
     """Bar chart bandingkan prediksi salary vs benchmark industri."""
     labels    = ["Entry Level\n(CSE/IT)", "Mid Level\n(All Branch)", "Predicted\nSalary", "Senior Level\n(Top 25%)"]
@@ -195,12 +178,12 @@ def plot_salary_benchmark(salary: float):
     return fig
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# 
 # MAIN APP
-# ═══════════════════════════════════════════════════════════════════════════════
+#
 def main():
 
-    # ── Load models ──────────────────────────────────────────
+    # Load models 
     try:
         clf_model, reg_model = load_models()
     except FileNotFoundError as e:
@@ -208,7 +191,7 @@ def main():
         st.info("Pastikan kamu sudah menjalankan `python pipeline.py` terlebih dahulu.")
         st.stop()
 
-    # ── Header ───────────────────────────────────────────────
+    # Header 
     st.markdown("""
     <h1 style='text-align:center; color:#2c3e50;'>
         🎓 Student Placement Predictor
@@ -219,7 +202,7 @@ def main():
     <hr style='border: 1px solid #ecf0f1;'>
     """, unsafe_allow_html=True)
 
-    # ── Sidebar — Input Form ──────────────────────────────────
+    # Sidebar — Input Form 
     with st.sidebar:
         st.markdown("## 📋 Student Profile Input")
         st.markdown("---")
@@ -258,7 +241,7 @@ def main():
         st.markdown("---")
         predict_btn = st.button("🔮 Predict Now", use_container_width=True, type="primary")
 
-    # ── Main Content — Tabs ───────────────────────────────────
+    #  Main Content — Tabs 
     tab1, tab2, tab3 = st.tabs(["📊 Prediction Results", "📈 Profile Analysis", "ℹ️ Model Info"])
 
     # Siapkan input data
@@ -276,9 +259,9 @@ def main():
         "extracurricular_involvement": extra_curr
     }
 
-    # ─────────────────────────────────────────────────────────
+  
     # TAB 1 — Prediction Results
-    # ─────────────────────────────────────────────────────────
+
     with tab1:
         if predict_btn:
             with st.spinner("Menjalankan prediksi..."):
@@ -360,9 +343,8 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
-    # ─────────────────────────────────────────────────────────
     # TAB 2 — Profile Analysis
-    # ─────────────────────────────────────────────────────────
+
     with tab2:
         st.markdown("### 🧠 Student Profile Analysis")
         st.markdown("Visualisasi profil berdasarkan input saat ini (real-time, tanpa perlu klik Predict).")
@@ -409,9 +391,8 @@ def main():
         feature_df["Score (%)"] = (feature_df["Value"] / feature_df["Max"] * 100).round(1)
         st.dataframe(feature_df, use_container_width=True, hide_index=True)
 
-    # ─────────────────────────────────────────────────────────
     # TAB 3 — Model Info
-    # ─────────────────────────────────────────────────────────
+    
     with tab3:
         st.markdown("### ℹ️ Model Information")
 
