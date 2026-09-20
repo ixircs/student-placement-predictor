@@ -1,5 +1,5 @@
 
-#Soal 3 — Monolithic Deployment (Streamlit)
+# Monolithic deployment — model loaded directly in the Streamlit app.
 
 
 import joblib

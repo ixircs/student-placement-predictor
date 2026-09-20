@@ -1,5 +1,5 @@
 """
-Soal 4 — Frontend (Streamlit Client)
+Decoupled frontend — Streamlit client that calls the FastAPI backend.
 
 Streamlit app yang bertindak sebagai CLIENT — tidak memuat model .pkl
 secara langsung, melainkan mengirimkan HTTP POST request ke FastAPI backend.

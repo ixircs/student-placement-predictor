@@ -33,7 +33,7 @@ app = FastAPI(
     description="API prediksi placement status dan estimasi salary mahasiswa menggunakan Machine Learning.\n\n",
     version="1.0.0",
     contact={
-        "name": "Model Deployment — DTSC6012001",
+        "name": "Ryan Christopher Setiawan",
     }
 )
 
