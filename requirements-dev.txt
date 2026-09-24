@@ -1,0 +1,9 @@
+# Full development environment: training pipeline, experiment tracking and the
+# decoupled FastAPI service. Installs everything the deployed app needs as well.
+-r requirements.txt
+
+mlflow==3.10.0
+cloudpickle==3.1.2
+fastapi>=0.110,<1
+uvicorn>=0.27,<1
+requests>=2.31,<3

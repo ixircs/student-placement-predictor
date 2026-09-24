@@ -83,7 +83,11 @@ tier, internet access, extracurricular involvement.
 ## Run locally
 
 ```bash
+# App only (what the hosted demo runs)
 pip install -r requirements.txt
+
+# Full pipeline, experiment tracking and the FastAPI service
+pip install -r requirements-dev.txt
 
 # Run the full training pipeline (ingestion → features → train → evaluate → gate)
 python pipeline.py
