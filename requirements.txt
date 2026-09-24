@@ -3,7 +3,7 @@
 # versions they were trained with — scikit-learn 1.8.0, confirmed from both the
 # pickle metadata and the MLflow run artifacts (python 3.11.14).
 # For the full pipeline (training, FastAPI service, MLflow) see requirements-dev.txt.
-streamlit==1.55.0
+streamlit==1.64.0
 scikit-learn==1.8.0
 pandas==3.0.2
 numpy==2.4.4
