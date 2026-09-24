@@ -1,5 +1,8 @@
 # Student Placement & Salary Predictor
 
+**Live demo:** [https://student-placement-predictor-nwstbcxym3fqitybwgxi7i.streamlit.app](https://student-placement-predictor-nwstbcxym3fqitybwgxi7i.streamlit.app/)  
+Runs the monolithic Streamlit deployment (`app.py`) with the trained models loaded in-process.
+
 End-to-end machine learning system that predicts two outcomes for students
 from academic, behavioral, and demographic features:
 
